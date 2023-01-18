@@ -7,6 +7,9 @@ import numpy as np
 import env
 import os
 from sklearn.model_selection import train_test_split
+from sklearn.feature_selection import SelectKBest, f_regression, RFE
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import MinMaxScaler
 
 def get_connection(db, user=env.username, host=env.host, password=env.password):
     return f'mysql+pymysql://{user}:{password}@{host}/{db}'
@@ -75,3 +78,25 @@ def wrangle_zillow():
     train, validate, test = prep_zillow(acquire_zillow())
     
     return train, validate, test
+
+
+def select_kbest(features, target, c):
+    x_train_scaled = features
+    y_train = target
+    f_selector = SelectKBest(f_regression, k=c)
+    f_selector.fit(x_train_scaled, y_train)
+    f_select_mask = f_selector.get_support()
+    return x_train_scaled.columns[f_select_mask]
+
+
+def rfe(df, target, c, features = None):
+    x_train = df.drop(columns = target)
+    x_train = pd.get_dummies(x_train, columns = features)
+    y_train = df[target]
+    lm = LinearRegression()
+    rfe = RFE(lm, n_features_to_select = c)
+    rfe.fit(x_train, y_train)
+    ranks = rfe.ranking_
+    columns = x_train.columns.tolist()
+    feature_ranks = pd.DataFrame({'ranking': ranks,'feature': columns})
+    return feature_ranks.sort_values('ranking') 
